@@ -1,0 +1,45 @@
+name: Build Frontend (Win32 x64)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: kas-frontend-app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: kas-frontend-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Electron App (Installer + Portable)
+        run: npm run electron:build -- --win nsis portable --x64
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kas-frontend-win-x64
+          path: kas-frontend-app/dist_electron/**
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: kas-frontend-app/dist_electron/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.KASFEToken }}
