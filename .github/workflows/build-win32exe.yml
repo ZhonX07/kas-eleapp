@@ -10,45 +10,54 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # 1️⃣ Checkout 仓库
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2️⃣ Setup Node.js (先 Node.js，再 pnpm)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      # 3️⃣ Install pnpm
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: latest
 
-      - name: Setup Node.js (with pnpm cache)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: "pnpm"
-          # 使用通配，确保匹配子目录里的 pnpm-lock.yaml
-          cache-dependency-path: "**/pnpm-lock.yaml"
+      # 4️⃣ 确认目录结构（可选调试）
+      - name: List files
+        run: dir
 
-      - name: Install dependencies (pnpm install)
+      # 5️⃣ Install dependencies
+      - name: Install dependencies
         run: pnpm install
-        working-directory: kas-frontend-app
+        working-directory: ./kas-frontend-app
 
-      - name: Build Electron App (Installer + Portable)
-        run: npm run electron:build -- --win nsis portable --x64
-        working-directory: kas-frontend-app
+      # 6️⃣ Build Electron App (Installer + Portable)
+      - name: Build Electron App
+        run: pnpm run electron:build -- --win nsis portable --x64
+        working-directory: ./kas-frontend-app
         env:
           CI: true
 
+      # 7️⃣ Upload build artifacts
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kas-frontend-win-x64
-          path: kas-frontend-app/dist_electron/**
+          path: ./kas-frontend-app/dist_electron/**
 
+      # 8️⃣ Create GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          files: kas-frontend-app/dist_electron/**
+          files: ./kas-frontend-app/dist_electron/**
         env:
-          # 推荐使用内置 token，或确保你自定义的 token 拥有 repo:statuses, repo_deployment, public_repo, repo 这类权限
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
