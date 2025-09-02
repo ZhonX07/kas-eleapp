@@ -1,0 +1,42 @@
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('@/WebSrcFiles/HMOS.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('@/WebSrcFiles/JBMNB.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'HarmonyOS Sans SC', 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* 为代码和数字内容使用等宽字体 */
+code, pre, .mono, .code {
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* 输入框保持中文字体优先，数字等宽字体次之 */
+input[type="text"], input[type="password"], input, textarea {
+  font-family: 'HarmonyOS Sans SC', 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
