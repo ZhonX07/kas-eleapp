@@ -27,14 +27,8 @@ jobs:
           # 使用通配，确保匹配子目录里的 pnpm-lock.yaml
           cache-dependency-path: "**/pnpm-lock.yaml"
 
-      # 如果你发现 electron-builder 在 Windows runner 上找不到 makensis，请取消下面注释安装 NSIS
-      # - name: Ensure NSIS (optional)
-      #   run: choco install -y nsis
-      #   shell: powershell
-
       - name: Install dependencies (pnpm install)
         run: pnpm install
-        # defaults.run 已设为 kas-frontend-app，但这里再显式写一遍更清晰（可选）
         working-directory: kas-frontend-app
 
       - name: Build Electron App (Installer + Portable)
