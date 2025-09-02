@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2️⃣ Setup Node.js (先 Node.js，再 pnpm)
+      # 2️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,18 +30,18 @@ jobs:
         with:
           version: latest
 
-      # 4️⃣ 确认目录结构（可选调试）
+      # 4️⃣ 可选：列出文件，确认目录结构
       - name: List files
         run: dir
 
-      # 5️⃣ Install dependencies
+      # 5️⃣ Install dependencies using pnpm exec
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm exec pnpm install
         working-directory: ./kas-frontend-app
 
       # 6️⃣ Build Electron App (Installer + Portable)
       - name: Build Electron App
-        run: pnpm run electron:build -- --win nsis portable --x64
+        run: pnpm exec pnpm run electron:build -- --win nsis portable --x64
         working-directory: ./kas-frontend-app
         env:
           CI: true
