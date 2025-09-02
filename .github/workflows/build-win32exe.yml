@@ -9,10 +9,6 @@ jobs:
   build:
     runs-on: windows-latest
 
-    defaults:
-      run:
-        working-directory: kas-frontend-app
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,9 +30,11 @@ jobs:
 
       - name: Install dependencies (pnpm install)
         run: pnpm install
+        working-directory: kas-frontend-app
 
       - name: Build Electron App (Installer + Portable)
         run: npm run electron:build -- --win nsis portable --x64
+        working-directory: kas-frontend-app
         env:
           CI: true
 
