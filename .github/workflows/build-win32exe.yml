@@ -10,13 +10,19 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout 仓库
+      # 1️⃣ Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2️⃣ Setup Node.js
+      # 2️⃣ Install pnpm FIRST
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      # 3️⃣ Setup Node.js (now pnpm is available for caching)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -24,36 +30,30 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
-      # 3️⃣ Install pnpm
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-
-      # 4️⃣ 可选：列出文件，确认目录结构
+      # 4️⃣ List directory structure (optional)
       - name: List files
         run: dir
 
-      # 5️⃣ Install dependencies using pnpm exec
+      # 5️⃣ Install dependencies using pnpm directly
       - name: Install dependencies
-        run: pnpm exec pnpm install
+        run: pnpm install
         working-directory: ./kas-frontend-app
 
-      # 6️⃣ Build Electron App (Installer + Portable)
+      # 6️⃣ Build Electron App
       - name: Build Electron App
-        run: pnpm exec pnpm run electron:build -- --win nsis portable --x64
+        run: pnpm run electron:build -- --win nsis portable --x64
         working-directory: ./kas-frontend-app
         env:
           CI: true
 
-      # 7️⃣ Upload build artifacts
+      # 7️⃣ Upload artifacts
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kas-frontend-win-x64
           path: ./kas-frontend-app/dist_electron/**
 
-      # 8️⃣ Create GitHub Release
+      # 8️⃣ Create Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
