@@ -16,19 +16,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js (with npm cache)
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: "npm"
-          cache-dependency-path: kas-frontend-app/package-lock.json
+          # 使用通配，确保匹配子目录里的 package-lock.json
+          cache-dependency-path: "**/package-lock.json"
 
-      - name: Install dependencies
+      # 如果你发现 electron-builder 在 Windows runner 上找不到 makensis，请取消下面注释安装 NSIS
+      # - name: Ensure NSIS (optional)
+      #   run: choco install -y nsis
+      #   shell: powershell
+
+      - name: Install dependencies (npm ci)
         run: npm ci
+        # defaults.run 已设为 kas-frontend-app，但这里再显式写一遍更清晰（可选）
+        working-directory: kas-frontend-app
 
       - name: Build Electron App (Installer + Portable)
         run: npm run electron:build -- --win nsis portable --x64
+        working-directory: kas-frontend-app
+        env:
+          CI: true
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -42,4 +55,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: kas-frontend-app/dist_electron/**
         env:
-          GITHUB_TOKEN: ${{ secrets.KASFEToken }}
+          # 推荐使用内置 token，或确保你自定义的 token 拥有 repo:statuses, repo_deployment, public_repo, repo 这类权限
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
