@@ -20,6 +20,8 @@ function createWindow() {
     show: false // 先隐藏窗口，等待ready-to-show事件
   })
 
+  // fuck u nvidia!
+
   // 窗口准备好显示时再显示，避免闪烁
   mainWindow.once('ready-to-show', () => {
     mainWindow.show()
