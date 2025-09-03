@@ -45,6 +45,11 @@ const reportsAPI = {
     return request('/api/reports/today/stats')
   },
 
+  // 获取今日明细数据
+  async getTodayDetails() {
+    return request('/api/reports/today/details')
+  },
+
   // 获取特定日期的通报
   async getReportsByDate(date) {
     return request(`/api/reports/date/${date}`)

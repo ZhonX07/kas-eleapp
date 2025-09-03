@@ -72,12 +72,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 
-// 当前日期
+// 响应式数据
 const currentDate = ref('')
+const loading = ref(false)
+const error = ref('')
 
-// 今日通报统计
+// 统计数据
 const todayReports = ref({
   total: 42,
   negative: 28,
@@ -111,7 +113,22 @@ const classRanking = ref([
   { class: 24, headteacher: "王思程", score: -12 }
 ])
 
+const recentReports = ref([])
+
+// 预定义颜色方案
+const typeColors = {
+  '重大表彰': '#27ae60',
+  '表彰': '#2ecc71', 
+  '小表彰': '#58d68d',
+  '重大违纪': '#e74c3c',
+  '违纪': '#ec7063',
+  '小违纪': '#f1948a'
+}
+
 const pieChartCanvas = ref<HTMLCanvasElement>()
+
+// 刷新间隔定时器
+let refreshInterval = null
 
 // 初始化
 onMounted(() => {
@@ -124,9 +141,95 @@ onMounted(() => {
     weekday: 'long'
   })
 
-  // 绘制饼图
-  drawPieChart()
+  // 获取今日数据
+  fetchTodayData()
 })
+
+// 获取今日数据
+async function fetchTodayData() {
+  try {
+    loading.value = true
+    error.value = ''
+    
+    // 使用fetch请求今日明细接口
+    const fetchResponse = await fetch('/api/today-details')
+    const response = await fetchResponse.json()
+    
+    if (!response.success) {
+      throw new Error(response.message || '获取数据失败')
+    }
+    
+    // 更新统计数据
+    todayReports.value.total = response.data.summary.total
+    todayReports.value.positive = response.data.summary.praise
+    todayReports.value.negative = response.data.summary.criticism
+    activeClasses.value = response.data.summary.activeClasses
+    
+    // 处理类型统计数据 - 基于明细数据生成
+    const typeStatsMap = {}
+    response.data.allReports.forEach(report => {
+      const level = report.level
+      typeStatsMap[level] = (typeStatsMap[level] || 0) + 1
+    })
+    
+    reportTypes.value = Object.entries(typeStatsMap).map(([type, count]) => ({
+      type,
+      count: count as number,
+      color: typeColors[type] || '#95a5a6'
+    }))
+    
+    // 生成班级排行榜 - 基于明细数据计算
+    const classStatsMap = {}
+    response.data.allReports.forEach(report => {
+      if (!classStatsMap[report.class]) {
+        classStatsMap[report.class] = {
+          class: `${report.class}班`,
+          headteacher: report.headteacher,
+          totalScore: 0,
+          reportCount: 0
+        }
+      }
+      
+      const classStats = classStatsMap[report.class]
+      classStats.reportCount++
+      classStats.totalScore += report.nature === 'praise' ? report.actualScore : -report.actualScore
+    })
+    
+    // 更新班级排行榜
+    classRanking.value = Object.values(classStatsMap)
+      .sort((a: any, b: any) => b.totalScore - a.totalScore)
+      .slice(0, 10) // 只显示前10名
+      .map((item: any, index) => ({
+        ...item,
+        rank: index + 1,
+        score: item.totalScore,
+        trend: item.totalScore > 0 ? 'up' : item.totalScore < 0 ? 'down' : 'stable'
+      }))
+    
+    // 更新最近通报 - 取前5条
+    recentReports.value = response.data.allReports.slice(0, 5).map(report => ({
+      id: report.id,
+      class: `${report.class}班`,
+      headteacher: report.headteacher,
+      type: report.type,
+      score: report.nature === 'praise' ? `+${report.actualScore}` : `-${report.actualScore}`,
+      note: report.note,
+      submitter: report.submitter,
+      time: report.submittime
+    }))
+    
+    // 绘制饼图
+    await nextTick()
+    drawPieChart()
+    
+    console.log('📊 数据刷新成功')
+  } catch (err) {
+    console.error('获取今日数据失败:', err)
+    error.value = err.message || '获取数据失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 // 绘制简单饼图
 const drawPieChart = () => {

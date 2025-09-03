@@ -286,7 +286,7 @@ const handleSubmit = async () => {
     console.log('提交通报数据:', submitData)
     
     // 使用fetch提交通报
-    const fetchResponse = await fetch('/api/submit-report', {
+    const fetchResponse = await fetch('/api/inputdata', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
