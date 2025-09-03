@@ -157,8 +157,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { getUserInfo } from '@/utils/auth' // 假设有这个函数来获取用户信息
-import { SUBMIT_REPORT_API, API_CONFIG } from '@/config/api'
+
+// 定义班级类型
+interface ClassItem {
+  class: number
+  headteacher: string
+}
 
 // 表单数据
 const formData = ref({
@@ -175,27 +179,9 @@ const showPreview = ref(false)
 const message = ref('')   
 const messageType = ref<'success' | 'error'>('success')
 
-// 班级列表（基于class.json）
-const classList = ref([
-  { class: 1, headteacher: "王振宽" },
-  { class: 2, headteacher: "郭宝伟" },
-  { class: 3, headteacher: "张春水" },
-  { class: 4, headteacher: "孙华义" },
-  { class: 5, headteacher: "边海根" },
-  { class: 6, headteacher: "王国华" },
-  { class: 7, headteacher: "刘磊磊" },
-  { class: 8, headteacher: "刘鹏欣" },
-  { class: 9, headteacher: "陈常锋" },
-  { class: 10, headteacher: "程猛猛" },
-  { class: 15, headteacher: "谢媛" },
-  { class: 16, headteacher: "刘世彬" },
-  { class: 17, headteacher: "刘东良" },
-  { class: 18, headteacher: "顾明立" },
-  { class: 19, headteacher: "周殿勋" },
-  { class: 21, headteacher: "王树琦" },
-  { class: 22, headteacher: "袁义国" },
-  { class: 24, headteacher: "王思程" }
-])
+// 班级列表 - 从API加载
+const classList = ref<ClassItem[]>([])
+const loadingClasses = ref(true)
 
 // 表单验证
 const isFormValid = computed(() => {
@@ -210,9 +196,51 @@ const isFormValid = computed(() => {
          formData.value.remark.length <= 500
 })
 
+// 获取用户信息
+const getUserInfo = () => {
+  return { name: '系统用户' } // 简化的用户信息获取
+}
+
+// 加载班级列表
+async function loadClasses() {
+  try {
+    loadingClasses.value = true
+    // Use direct fetch for better compatibility
+    const fetchResponse = await fetch('/api/classes')
+    const response = await fetchResponse.json()
+    classList.value = response.data || response
+    console.log('✅ 班级列表加载成功:', classList.value)
+  } catch (error) {
+    console.error('❌ 加载班级列表失败:', error)
+    // 使用备用数据
+    classList.value = [
+      { class: 1, headteacher: "王振宽" },
+      { class: 2, headteacher: "郭宝伟" },
+      { class: 3, headteacher: "张春水" },
+      { class: 4, headteacher: "孙华义" },
+      { class: 5, headteacher: "边海根" },
+      { class: 6, headteacher: "王国华" },
+      { class: 7, headteacher: "刘磊磊" },
+      { class: 8, headteacher: "刘鹏欣" },
+      { class: 9, headteacher: "陈常锋" },
+      { class: 10, headteacher: "程猛猛" },
+      { class: 15, headteacher: "谢媛" },
+      { class: 16, headteacher: "刘世彬" },
+      { class: 17, headteacher: "刘东良" },
+      { class: 18, headteacher: "顾明立" },
+      { class: 19, headteacher: "周殿勋" },
+      { class: 21, headteacher: "王树琦" },
+      { class: 22, headteacher: "袁义国" },
+      { class: 24, headteacher: "王思程" }
+    ]
+  } finally {
+    loadingClasses.value = false
+  }
+}
+
 // 初始化
 onMounted(() => {
-  // 移除时间相关的初始化代码
+  loadClasses()
 })
 
 // 获取班级显示名称
@@ -244,7 +272,7 @@ const handleSubmit = async () => {
 
   try {
     // 获取当前登录用户信息
-    const userInfo = getUserInfo() || { name: '系统用户' }
+    const userInfo = getUserInfo()
     
     // 构建符合后端要求的数据格式
     const submitData = {
@@ -257,30 +285,15 @@ const handleSubmit = async () => {
     
     console.log('提交通报数据:', submitData)
     
-    // 使用配置的 API URL
-    const response = await fetch(SUBMIT_REPORT_API, {
+    // 使用fetch提交通报
+    const fetchResponse = await fetch('/api/submit-report', {
       method: 'POST',
       headers: {
-        ...API_CONFIG.headers,
-        'Authorization': `Bearer ${localStorage.getItem('token')}` // 添加认证 token
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(submitData),
+      body: JSON.stringify(submitData)
     })
-
-    // 检查 HTTP 状态码
-    if (!response.ok) {
-      // 尝试获取错误信息
-      let errorMessage = '服务器错误，请稍后重试'
-      try {
-        const errorData = await response.json()
-        errorMessage = errorData.message || errorMessage
-      } catch (e) {
-        // 如果无法解析 JSON，使用默认错误消息
-      }
-      throw new Error(errorMessage)
-    }
-
-    const result = await response.json()
+    const result = await fetchResponse.json()
 
     if (result.success) {
       message.value = '通报提交成功！'
