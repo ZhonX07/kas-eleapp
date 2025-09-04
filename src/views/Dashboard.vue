@@ -61,6 +61,11 @@ const activeComponent = computed(() => {
 })
 
 const logout = () => {
+  // 清除本地存储的用户信息
+  localStorage.removeItem('kas_user')
+  localStorage.removeItem('kas_token')
+  
+  // 跳转到登录页
   router.push('/login')
 }
 </script>

@@ -1,23 +1,30 @@
 <template>
-  <div class="submit-report-container">
-    <div class="submit-header">
-      <h2>提交通报</h2>
-      <p>请填写通报信息，所有字段均为必填</p>
+  <div class="submit-report">
+    <div class="page-header">
+      <h1>提交通报</h1>
+      <p>记录学生的表彰或违纪情况</p>
+    </div>
+
+    <!-- 消息提示 -->
+    <div v-if="message" class="message" :class="messageType">
+      {{ message }}
     </div>
 
     <div class="form-container">
       <form @submit.prevent="handleSubmit" class="report-form">
-        <div class="form-row">
-          <!-- 班级选择 -->
+        <!-- 基本信息 -->
+        <div class="form-section">
+          <h3>基本信息</h3>
+          
           <div class="form-group">
-            <label for="class">班级</label>
+            <label for="class">班级 *</label>
             <select 
               id="class" 
               v-model="formData.class" 
+              :disabled="loadingClasses"
               required
-              :disabled="submitting"
             >
-              <option value="">请选择班级</option>
+              <option value="">{{ loadingClasses ? '加载中...' : '请选择班级' }}</option>
               <option 
                 v-for="classItem in classList" 
                 :key="classItem.class" 
@@ -28,101 +35,83 @@
             </select>
           </div>
 
-          <!-- 通报类型 -->
           <div class="form-group">
-            <label for="reportType">通报类型</label>
-            <input 
-              id="reportType" 
-              v-model="formData.reportType" 
-              type="text"
-              placeholder="请输入通报类型，如：违纪扣分、表现加分等"
-              required
-              :disabled="submitting"
-            />
-            <small class="field-hint">
-              请简要描述通报类型
-            </small>
+            <label>通报类型 *</label>
+            <div class="radio-group">
+              <label class="radio-item">
+                <input 
+                  type="radio" 
+                  v-model="formData.type" 
+                  value="praise"
+                  required
+                >
+                <span class="radio-label praise">表彰</span>
+              </label>
+              <label class="radio-item">
+                <input 
+                  type="radio" 
+                  v-model="formData.type" 
+                  value="criticism"
+                  required
+                >
+                <span class="radio-label criticism">违纪</span>
+              </label>
+            </div>
           </div>
-        </div>
 
-        <div class="form-row">
-          <!-- 通报性质 -->
           <div class="form-group">
-            <label for="reportNature">通报性质</label>
-            <select
-              id="reportNature"
-              v-model="formData.reportNature"
-              required
-              :disabled="submitting"
-            >
-              <option value="">请选择通报性质</option>
-              <option value="praise">表彰</option>
-              <option value="criticism">批评</option>
-            </select>
-            <small class="field-hint">
-              表彰一般用于加分，批评一般用于扣分
-            </small>
-          </div>
-          
-          <!-- 分数变动 -->
-          <div class="form-group">
-            <label for="scoreChange">分数变动</label>
+            <label for="score">分值 *</label>
             <input 
-              id="scoreChange" 
-              v-model.number="formData.scoreChange" 
+              id="score"
               type="number" 
-              :min="formData.reportNature === 'praise' ? '0' : '-20'"
-              :max="formData.reportNature === 'praise' ? '20' : '0'"
-              step="1"
-              :placeholder="formData.reportNature === 'praise' ? '输入加分分数(0-20)' : '输入扣分分数(-20-0)'"
+              v-model="formData.score" 
+              min="1" 
+              max="20" 
               required
-              :disabled="submitting"
-            />
-            <small class="field-hint">
-              {{ formData.reportNature === 'praise' ? '正数表示加分' : '负数表示扣分' }}
-            </small>
+              placeholder="请输入分值 (1-20)"
+            >
+            <small class="help-text">分值范围：1-20分</small>
           </div>
         </div>
 
-        <!-- 备注 -->
-        <div class="form-group full-width">
-          <label for="remark">备注</label>
-          <textarea 
-            id="remark" 
-            v-model="formData.remark" 
-            rows="4"
-            placeholder="请详细描述通报事由..."
-            required
-            :disabled="submitting"
-          ></textarea>
-          <small class="field-hint">
-            {{ formData.remark.length }}/500 字符
-          </small>
-        </div>
+        <!-- 详细信息 -->
+        <div class="form-section">
+          <h3>详细信息</h3>
+          
+          <div class="form-group">
+            <label for="title">标题 *</label>
+            <input 
+              id="title"
+              type="text" 
+              v-model="formData.title" 
+              required
+              placeholder="请输入通报标题"
+              maxlength="50"
+            >
+          </div>
 
-        <!-- 表单预览 -->
-        <div v-if="showPreview" class="form-preview">
-          <h4>通报预览</h4>
-          <div class="preview-content">
-            <div class="preview-item">
-              <strong>班级：</strong>{{ getClassDisplay() }}
-            </div>
-            <div class="preview-item">
-              <strong>通报类型：</strong>{{ formData.reportType }}
-            </div>
-            <div class="preview-item">
-              <strong>通报性质：</strong>{{ formData.reportNature === 'praise' ? '表彰' : '批评' }}
-            </div>
-            <div class="preview-item" :class="{ 
-              'score-positive': formData.scoreChange > 0,
-              'score-negative': formData.scoreChange < 0 
-            }">
-              <strong>分数变动：</strong>
-              {{ formData.scoreChange > 0 ? '+' : '' }}{{ formData.scoreChange }}
-            </div>
-            <div class="preview-item">
-              <strong>备注：</strong>{{ formData.remark }}
-            </div>
+          <div class="form-group">
+            <label for="description">详细描述 *</label>
+            <textarea 
+              id="description"
+              v-model="formData.description" 
+              required
+              placeholder="请详细描述具体情况"
+              rows="4"
+              maxlength="200"
+            ></textarea>
+            <small class="help-text">{{ formData.description.length }}/200</small>
+          </div>
+
+          <div class="form-group">
+            <label for="submitter">提交人</label>
+            <input 
+              id="submitter"
+              type="text" 
+              v-model="formData.submitter" 
+              placeholder="提交人姓名 (可选)"
+              maxlength="20"
+            >
           </div>
         </div>
 
@@ -130,413 +119,389 @@
         <div class="form-actions">
           <button 
             type="button" 
-            @click="togglePreview" 
-            class="preview-btn"
-            :disabled="!isFormValid || submitting"
+            @click="resetForm" 
+            class="btn btn-secondary"
+            :disabled="submitting"
           >
-            {{ showPreview ? '隐藏预览' : '预览通报' }}
+            重置
           </button>
-          
           <button 
             type="submit" 
-            class="submit-btn"
-            :disabled="!isFormValid || submitting"
+            class="btn btn-primary"
+            :disabled="submitting || !isFormValid"
           >
             {{ submitting ? '提交中...' : '提交通报' }}
           </button>
-        </div>
-
-        <!-- 成功/错误消息 -->
-        <div v-if="message" class="message" :class="messageType">
-          {{ message }}
         </div>
       </form>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { reportsAPI } from '../../utils/api-unified.js'
 
-// 定义班级类型
-interface ClassItem {
-  class: number
-  headteacher: string
-}
+const router = useRouter()
 
 // 表单数据
 const formData = ref({
   class: '',
-  reportType: '',
-  reportNature: '', // 新增通报性质字段
-  scoreChange: 0,
-  remark: ''
+  type: '',
+  score: '',
+  title: '',
+  description: '',
+  submitter: ''
 })
 
 // 状态管理
 const submitting = ref(false)
-const showPreview = ref(false)
-const message = ref('')   
-const messageType = ref<'success' | 'error'>('success')
+const loadingClasses = ref(false)
+const message = ref('')
+const messageType = ref('') // 'success' | 'error'
 
-// 班级列表 - 从API加载
-const classList = ref<ClassItem[]>([])
-const loadingClasses = ref(true)
+// 班级列表
+const classList = ref([])
 
 // 表单验证
 const isFormValid = computed(() => {
-  return formData.value.class !== '' &&
-         formData.value.reportType.trim() !== '' &&
-         formData.value.reportNature !== '' && // 检查通报性质是否已选择
-         (
-           (formData.value.reportNature === 'praise' && formData.value.scoreChange > 0) || 
-           (formData.value.reportNature === 'criticism' && formData.value.scoreChange < 0)
-         ) &&
-         formData.value.remark.trim().length > 0 &&
-         formData.value.remark.length <= 500
+  return formData.value.class && 
+         formData.value.type && 
+         formData.value.score && 
+         formData.value.title.trim() && 
+         formData.value.description.trim()
 })
-
-// 获取用户信息
-const getUserInfo = () => {
-  return { name: '系统用户' } // 简化的用户信息获取
-}
 
 // 加载班级列表
 async function loadClasses() {
   try {
     loadingClasses.value = true
-    // Use direct fetch for better compatibility
-    const fetchResponse = await fetch('/api/classes')
-    const response = await fetchResponse.json()
+    console.log('🔄 正在加载班级列表...')
+    
+    const response = await reportsAPI.getClasses()
     classList.value = response.data || response
+    
     console.log('✅ 班级列表加载成功:', classList.value)
   } catch (error) {
     console.error('❌ 加载班级列表失败:', error)
+    
     // 使用备用数据
-    classList.value = [
-      { class: 1, headteacher: "王振宽" },
-      { class: 2, headteacher: "郭宝伟" },
-      { class: 3, headteacher: "张春水" },
-      { class: 4, headteacher: "孙华义" },
-      { class: 5, headteacher: "边海根" },
-      { class: 6, headteacher: "王国华" },
-      { class: 7, headteacher: "刘磊磊" },
-      { class: 8, headteacher: "刘鹏欣" },
-      { class: 9, headteacher: "陈常锋" },
-      { class: 10, headteacher: "程猛猛" },
-      { class: 15, headteacher: "谢媛" },
-      { class: 16, headteacher: "刘世彬" },
-      { class: 17, headteacher: "刘东良" },
-      { class: 18, headteacher: "顾明立" },
-      { class: 19, headteacher: "周殿勋" },
-      { class: 21, headteacher: "王树琦" },
-      { class: 22, headteacher: "袁义国" },
-      { class: 24, headteacher: "王思程" }
-    ]
+    classList.value = Array.from({ length: 60 }, (_, i) => ({
+      class: i + 1,
+      headteacher: `班主任${i + 1}`
+    }))
+    
+    console.log('⚠️ 使用备用班级数据')
   } finally {
     loadingClasses.value = false
   }
 }
 
-// 初始化
-onMounted(() => {
-  loadClasses()
-})
-
-// 获取班级显示名称
-const getClassDisplay = () => {
-  const classItem = classList.value.find(c => c.class === Number(formData.value.class))
-  return classItem ? `${classItem.class}班 - ${classItem.headteacher}` : ''
-}
-
-// 切换预览
-const togglePreview = () => {
-  showPreview.value = !showPreview.value
-}
-
-// 监听通报性质变化，自动调整分数
-watch(() => formData.value.reportNature, (newValue) => {
-  if (newValue === 'praise' && formData.value.scoreChange <= 0) {
-    formData.value.scoreChange = 1
-  } else if (newValue === 'criticism' && formData.value.scoreChange >= 0) {
-    formData.value.scoreChange = -1
+// 表单验证
+function validateForm() {
+  if (!formData.value.class) {
+    message.value = '请选择班级'
+    messageType.value = 'error'
+    return false
   }
-})
+  
+  if (!formData.value.type) {
+    message.value = '请选择通报类型'
+    messageType.value = 'error'
+    return false
+  }
+  
+  if (!formData.value.score || formData.value.score < 1 || formData.value.score > 20) {
+    message.value = '请输入有效的分值 (1-20)'
+    messageType.value = 'error'
+    return false
+  }
+  
+  if (!formData.value.title.trim()) {
+    message.value = '请输入标题'
+    messageType.value = 'error'
+    return false
+  }
+  
+  if (!formData.value.description.trim()) {
+    message.value = '请输入详细描述'
+    messageType.value = 'error'
+    return false
+  }
+  
+  return true
+}
 
 // 提交表单
-const handleSubmit = async () => {
-  if (!isFormValid.value) return
-
-  submitting.value = true
-  message.value = ''
+async function handleSubmit() {
+  if (!validateForm()) {
+    return
+  }
 
   try {
-    // 获取当前登录用户信息
-    const userInfo = getUserInfo()
+    submitting.value = true
     
-    // 构建符合后端要求的数据格式
     const submitData = {
       class: parseInt(formData.value.class),
-      isadd: formData.value.reportNature === 'praise', // 使用通报性质而不是分数判断
-      changescore: Math.abs(formData.value.scoreChange),
-      note: `${formData.value.reportType} - ${formData.value.remark}`,
-      submitter: userInfo.name
+      isadd: formData.value.type === 'praise',
+      changescore: parseInt(formData.value.score),
+      note: `${formData.value.title} - ${formData.value.description}`,
+      submitter: formData.value.submitter || '系统用户'
     }
     
-    console.log('提交通报数据:', submitData)
+    console.log('🚀 提交通报数据:', submitData)
     
-    // 使用fetch提交通报
-    const fetchResponse = await fetch('/api/inputdata', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(submitData)
-    })
-    const result = await fetchResponse.json()
-
-    if (result.success) {
+    const response = await reportsAPI.submitReport(submitData)
+    
+    if (response.success) {
+      console.log('✅ 提交成功:', response)
+      
+      // 显示成功消息
       message.value = '通报提交成功！'
       messageType.value = 'success'
       
       // 重置表单
+      resetForm()
+      
+      // 3秒后清除消息
       setTimeout(() => {
-        resetForm()
-      }, 2000)
+        message.value = ''
+      }, 3000)
     } else {
-      throw new Error(result.message || '提交失败，请稍后重试')
+      throw new Error(response.message || '提交失败')
     }
-
+    
   } catch (error) {
-    console.error('提交失败:', error)
-    message.value = error instanceof Error ? error.message : '网络错误，请检查连接后重试'
+    console.error('❌ 提交失败:', error)
+    message.value = `提交失败: ${error.message}`
     messageType.value = 'error'
+    
+    // 5秒后清除错误消息
+    setTimeout(() => {
+      message.value = ''
+    }, 5000)
   } finally {
     submitting.value = false
   }
 }
 
 // 重置表单
-const resetForm = () => {
+function resetForm() {
   formData.value = {
     class: '',
-    reportType: '',
-    reportNature: '', // 重置通报性质
-    scoreChange: 0,
-    remark: ''
+    type: '',
+    score: '',
+    title: '',
+    description: '',
+    submitter: ''
   }
-  showPreview.value = false
   message.value = ''
 }
+
+// 页面加载时获取班级列表
+onMounted(() => {
+  loadClasses()
+})
 </script>
 
 <style scoped>
-.submit-report-container {
-  padding: 1rem;
+.submit-report {
+  padding: 20px;
   max-width: 800px;
   margin: 0 auto;
 }
 
-.submit-header {
-  text-align: center;
-  margin-bottom: 2rem;
+.page-header {
+  margin-bottom: 30px;
 }
 
-.submit-header h2 {
+.page-header h1 {
+  margin: 0;
   color: #333;
   font-size: 2rem;
-  margin: 0 0 0.5rem 0;
 }
 
-.submit-header p {
+.page-header p {
+  margin: 8px 0 0;
   color: #666;
-  font-size: 1rem;
-  margin: 0;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.message.success {
+  background: #f0f9ff;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.message.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
 }
 
 .form-container {
   background: white;
-  padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 30px;
 }
 
-.report-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.form-section {
+  margin-bottom: 30px;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+.form-section h3 {
+  margin: 0 0 20px;
+  color: #333;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
+  margin-bottom: 20px;
 }
 
 .form-group label {
-  font-weight: 600;
-  color: #333;
-  font-size: 0.95rem;
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #374151;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  padding: 0.75rem;
-  border: 2px solid #e1e5e9;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-group input:disabled,
-.form-group select:disabled,
-.form-group textarea:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-}
-
-.field-hint {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 0.25rem;
-}
-
-.form-preview {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 6px;
-  border-left: 4px solid #667eea;
-}
-
-.form-preview h4 {
-  color: #333;
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-}
-
-.preview-content {
+.radio-group {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  gap: 20px;
+  margin-top: 8px;
 }
 
-.preview-item {
-  font-size: 0.95rem;
-  color: #333;
+.radio-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
-.preview-item strong {
-  color: #666;
-  min-width: 80px;
-  display: inline-block;
+.radio-item input[type="radio"] {
+  width: auto;
+  margin-right: 8px;
 }
 
-.score-positive {
-  color: #27ae60 !important;
+.radio-label {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
-.score-negative {
-  color: #e74c3c !important;
+.radio-label.praise {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.radio-label.criticism {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.help-text {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 12px;
 }
 
 .form-actions {
   display: flex;
-  gap: 1rem;
+  gap: 15px;
   justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
 }
 
-.preview-btn,
-.submit-btn {
-  padding: 0.75rem 1.5rem;
+.btn {
+  padding: 10px 20px;
   border: none;
   border-radius: 6px;
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: inherit;
+  transition: all 0.2s;
+  min-width: 100px;
 }
 
-.preview-btn {
-  background: #f8f9fa;
-  color: #333;
-  border: 2px solid #e9ecef;
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.preview-btn:hover:not(:disabled) {
-  background: #e9ecef;
-  border-color: #dee2e6;
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
-.submit-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.btn-primary {
+  background: #3b82f6;
   color: white;
 }
 
-.submit-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.preview-btn:disabled,
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.message {
-  padding: 1rem;
-  border-radius: 6px;
-  text-align: center;
-  font-weight: 500;
-  margin-top: 1rem;
-}
-
-.message.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
 }
 
 @media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
+  .submit-report {
+    padding: 10px;
   }
-
+  
+  .form-container {
+    padding: 20px;
+  }
+  
+  .radio-group {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
   .form-actions {
     flex-direction: column;
-  }
-
-  .preview-btn,
-  .submit-btn {
-    width: 100%;
   }
 }
 </style>

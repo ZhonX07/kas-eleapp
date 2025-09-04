@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LOGIN_API } from '@/config/api'
+import { authAPI } from '../utils/api-updated.js'
 
 const router = useRouter()
 
@@ -68,28 +68,28 @@ const handleLogin = async () => {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(LOGIN_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username.value,
-        totppass: totppass.value,
-      }),
+    console.log('🔐 正在登录:', { user: username.value })
+    
+    const response = await authAPI.login({
+      user: username.value,
+      totppass: totppass.value,
     })
 
-    if (response.status === 200) {
+    if (response.success) {
+      console.log('✅ 登录成功:', response.user)
+      
+      // 保存用户信息
+      localStorage.setItem('kas_user', JSON.stringify(response.user))
+      localStorage.setItem('kas_token', response.token)
+      
       // 登录成功，跳转到仪表板
       router.push('/dashboard')
-    } else if (response.status === 401) {
-      errorMessage.value = '鉴权失败，请重试'
     } else {
-      errorMessage.value = '登录失败，请稍后重试'
+      errorMessage.value = response.message || '登录失败，请稍后重试'
     }
   } catch (error) {
+    console.error('❌ 登录失败:', error)
     errorMessage.value = '网络错误，请检查连接后重试'
-    console.error('Login error:', error)
   } finally {
     loading.value = false
   }

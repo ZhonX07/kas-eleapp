@@ -3,7 +3,7 @@
  * 统一管理前端与后端的数据交互
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://117.72.79.92:8080'
 
 // 通用请求函数
 async function request(url, options = {}) {
