@@ -23,7 +23,7 @@ const MAX_MESSAGES = 50 // 最大保存消息数量
 
 // API基础URL（从环境变量获取）
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://117.72.79.92:8080'
-const WS_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://')
+const WS_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://') + '/'
 
 // 消息处理器映射表
 const messageHandlers = {}
@@ -51,7 +51,7 @@ export function connect() {
     socket = new WebSocket(WS_URL)
     
     socket.onopen = () => {
-      console.log('WebSocket已连接')
+      console.log('✅ WebSocket已连接')
       connectionStatus.value = 'connected'
       wsStats.connected = true
       wsStats.reconnectAttempts = 0
@@ -73,7 +73,11 @@ export function connect() {
     socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data)
-        console.log('收到WebSocket消息:', message)
+        console.log('📨 收到WebSocket消息:', message)
+        
+        // 更新统计
+        wsStats.messagesReceived++
+        wsStats.lastMessageTime = new Date().toISOString()
         
         // 发送自定义事件到应用程序
         if (message.type === 'new-report') {
@@ -81,6 +85,8 @@ export function connect() {
           window.dispatchEvent(new CustomEvent('new-report', {
             detail: message.data
           }))
+          
+          console.log('🔔 触发新通报事件:', message.data)
         }
         
         // 发送通用WebSocket消息事件
@@ -89,36 +95,36 @@ export function connect() {
         }))
         
       } catch (error) {
-        console.error('解析WebSocket消息失败:', error)
+        console.error('❌ 解析WebSocket消息失败:', error)
       }
     }
     
     socket.onclose = (event) => {
-      console.log(`WebSocket连接已关闭，代码: ${event.code}, 原因: ${event.reason}`)
+      console.log(`📡 WebSocket连接已关闭，代码: ${event.code}, 原因: ${event.reason}`)
       connectionStatus.value = 'disconnected'
       wsStats.connected = false
       
-      // 自动重连逻辑
-      if (wsStats.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      // 自动重连逻辑（仅在非正常关闭时）
+      if (event.code !== 1000 && wsStats.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         wsStats.reconnectAttempts++
-        console.log(`尝试重新连接 (${wsStats.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`)
+        console.log(`🔄 尝试重新连接 (${wsStats.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`)
         
         // 设置重连定时器
         reconnectTimer = setTimeout(() => {
-          console.log('尝试重新连接WebSocket...')
+          console.log('🔄 尝试重新连接WebSocket...')
           connect()
         }, RECONNECT_INTERVAL)
-      } else {
-        console.warn(`达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，不再尝试重连`)
+      } else if (wsStats.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.warn(`⚠️  达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，不再尝试重连`)
       }
     }
     
     socket.onerror = (error) => {
-      console.error('WebSocket错误:', error)
+      console.error('❌ WebSocket连接错误:', error)
       connectionStatus.value = 'disconnected'
     }
   } catch (error) {
-    console.error('创建WebSocket连接失败:', error)
+    console.error('❌ 创建WebSocket连接失败:', error)
     connectionStatus.value = 'disconnected'
   }
 }

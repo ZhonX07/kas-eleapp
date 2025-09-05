@@ -92,6 +92,11 @@ const reportsAPI = {
     })
   },
 
+  // 提交通报数据（别名）
+  async submitReport(reportData) {
+    return this.submit(reportData)
+  },
+
   // 获取历史记录
   async getHistory(params) {
     const queryString = new URLSearchParams()

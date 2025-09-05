@@ -295,9 +295,11 @@ function getConnectionStatusText() {
 // 检查服务器状态
 async function checkServerStatus() {
   try {
+    console.log('🔍 检查服务器状态...')
     const response = await fetch(`${apiBaseUrl}/health`)
     if (response.ok) {
       const data = await response.json()
+      console.log('✅ 服务器状态:', data)
       error.value = `服务器运行正常 (${data.status}) - ${data.timestamp}`
       setTimeout(() => {
         error.value = ''
@@ -307,8 +309,8 @@ async function checkServerStatus() {
       error.value = `服务器响应异常 (状态码: ${response.status})`
     }
   } catch (err) {
-    console.error('检查服务器状态失败:', err)
-    error.value = '无法连接到服务器，请确保后端服务已在 Rocky Linux 上启动'
+    console.error('❌ 检查服务器状态失败:', err)
+    error.value = '无法连接到服务器。请确保后端服务在 Rocky Linux 上运行，并检查防火墙设置。'
   }
 }
 

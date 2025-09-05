@@ -19,7 +19,14 @@ export const reportsAPI = {
   // 提交新通报 - 确保使用正确的端点
   async submitReport(data) {
     console.log('📤 提交通报数据到 /api/inputdata:', data)
-    return apiPost('/api/inputdata', data)
+    try {
+      const response = await apiPost('/api/inputdata', data)
+      console.log('✅ 通报提交成功:', response)
+      return response
+    } catch (error) {
+      console.error('❌ 通报提交失败:', error)
+      throw error
+    }
   },
 
   // 获取班级列表

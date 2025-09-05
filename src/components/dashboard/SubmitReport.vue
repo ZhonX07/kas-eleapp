@@ -302,7 +302,7 @@ async function handleSubmit() {
       console.log('✅ 提交成功:', response)
       
       // 显示成功消息
-      message.value = '通报提交成功！'
+      message.value = `通报提交成功！记录ID: ${response.data.id}`
       messageType.value = 'success'
       
       // 重置表单
@@ -318,7 +318,19 @@ async function handleSubmit() {
     
   } catch (error) {
     console.error('❌ 提交失败:', error)
-    message.value = `提交失败: ${error.message}`
+    
+    let errorMsg = '提交失败'
+    if (error.message?.includes('pool is not defined')) {
+      errorMsg = '数据库连接错误，请联系管理员检查后端服务'
+    } else if (error.message?.includes('Failed to fetch')) {
+      errorMsg = '网络连接失败，请检查网络或后端服务状态'
+    } else if (error.message?.includes('500')) {
+      errorMsg = '服务器内部错误，请查看后端日志'
+    } else {
+      errorMsg = error.message || '未知错误'
+    }
+    
+    message.value = `提交失败: ${errorMsg}`
     messageType.value = 'error'
     
     // 5秒后清除错误消息

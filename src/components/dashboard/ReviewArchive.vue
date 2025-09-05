@@ -270,9 +270,11 @@ const searchReports = async () => {
     if (error.message?.includes('Failed to fetch')) {
       errorMessage = '无法连接到服务器，请检查网络连接'
     } else if (error.message?.includes('500')) {
-      errorMessage = '服务器内部错误，可能是数据库字段不匹配。请检查后端日志。'
+      errorMessage = '服务器内部错误。可能原因：\n1. 数据库连接问题\n2. 数据库表结构不匹配\n3. pool is not defined 错误\n\n请检查后端日志获取详细信息。'
     } else if (error.message?.includes('404')) {
-      errorMessage = 'API接口不存在，请检查后端服务'
+      errorMessage = 'API接口不存在，请检查后端服务和路由配置'
+    } else if (error.message?.includes('pool')) {
+      errorMessage = '数据库连接池未正确初始化，请重启后端服务'
     } else {
       errorMessage = error.message || '未知错误'
     }
