@@ -1,4 +1,4 @@
-import { apiGet, apiPost, getApiBaseUrl } from './api-client.js'
+import { apiGet, apiPost } from './api-client.js'
 
 // 报告相关API
 export const reportsAPI = {
@@ -35,6 +35,3 @@ export const authAPI = {
     return apiPost('/api/login', credentials)
   }
 }
-
-// 导出API基础URL
-export { getApiBaseUrl }

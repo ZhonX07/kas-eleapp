@@ -59,6 +59,31 @@
             </div>
           </div>
 
+          <!-- 违纪类型选择 - 仅在选择违纪时显示 -->
+          <div v-if="formData.type === 'criticism'" class="form-group">
+            <label>违纪类型 *</label>
+            <div class="radio-group">
+              <label class="radio-item">
+                <input 
+                  type="radio" 
+                  v-model="formData.reduceType" 
+                  value="discipline"
+                  required
+                >
+                <span class="radio-label discipline">纪律违纪</span>
+              </label>
+              <label class="radio-item">
+                <input 
+                  type="radio" 
+                  v-model="formData.reduceType" 
+                  value="hygiene"
+                  required
+                >
+                <span class="radio-label hygiene">卫生违纪</span>
+              </label>
+            </div>
+          </div>
+
           <div class="form-group">
             <label for="score">分值 *</label>
             <input 
@@ -149,6 +174,7 @@ const router = useRouter()
 const formData = ref({
   class: '',
   type: '',
+  reduceType: '', // 新增违纪类型
   score: '',
   title: '',
   description: '',
@@ -166,11 +192,18 @@ const classList = ref([])
 
 // 表单验证
 const isFormValid = computed(() => {
-  return formData.value.class && 
+  const basicValid = formData.value.class && 
          formData.value.type && 
          formData.value.score && 
          formData.value.title.trim() && 
          formData.value.description.trim()
+  
+  // 如果是违纪，还需要选择违纪类型
+  if (formData.value.type === 'criticism') {
+    return basicValid && formData.value.reduceType
+  }
+  
+  return basicValid
 })
 
 // 加载班级列表
@@ -230,6 +263,12 @@ function validateForm() {
     return false
   }
   
+  if (formData.value.type === 'criticism' && !formData.value.reduceType) {
+    message.value = '请选择违纪类型'
+    messageType.value = 'error'
+    return false
+  }
+  
   return true
 }
 
@@ -248,6 +287,11 @@ async function handleSubmit() {
       changescore: parseInt(formData.value.score),
       note: `${formData.value.title} - ${formData.value.description}`,
       submitter: formData.value.submitter || '系统用户'
+    }
+    
+    // 如果是违纪，添加违纪类型
+    if (formData.value.type === 'criticism' && formData.value.reduceType) {
+      submitData.reducetype = formData.value.reduceType
     }
     
     console.log('🚀 提交通报数据:', submitData)
@@ -291,6 +335,7 @@ function resetForm() {
   formData.value = {
     class: '',
     type: '',
+    reduceType: '',
     score: '',
     title: '',
     description: '',
@@ -433,6 +478,18 @@ onMounted(() => {
   background: #fef2f2;
   color: #991b1b;
   border: 1px solid #fecaca;
+}
+
+.radio-label.discipline {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.radio-label.hygiene {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
 .help-text {

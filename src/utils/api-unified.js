@@ -1,4 +1,8 @@
-import { apiGet, apiPost, getApiBaseUrl } from './api-client.js'
+/**
+ * 统一的API接口定义
+ * 所有API调用的入口点
+ */
+import { apiGet, apiPost, getApiConfig } from './api-client.js'
 
 // 报告相关API
 export const reportsAPI = {
@@ -12,13 +16,19 @@ export const reportsAPI = {
     return apiGet('/api/reports/today/details')
   },
 
-  // 提交新通报
+  // 提交新通报 - 确保使用正确的端点
   async submitReport(data) {
+    console.log('📤 提交通报数据到 /api/inputdata:', data)
     return apiPost('/api/inputdata', data)
   },
 
   // 获取班级列表
   async getClasses() {
+    return apiGet('/api/classes')
+  },
+
+  // 获取班级列表（别名）
+  async getAllClasses() {
     return apiGet('/api/classes')
   },
 
@@ -40,6 +50,20 @@ export const reportsAPI = {
   // 获取班级在日期范围内的通报
   async getReportsByClassAndDateRange(classNum, startDate, endDate) {
     return apiGet(`/api/reports/class/${classNum}/range/${startDate}/${endDate}`)
+  },
+
+  // 获取历史记录
+  async getHistory(params) {
+    const queryString = new URLSearchParams()
+    
+    // 构建查询参数
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryString.append(key, value.toString())
+      }
+    })
+    
+    return apiGet(`/api/reports/history?${queryString}`)
   }
 }
 
@@ -73,8 +97,13 @@ export const utils = {
       day: 'numeric',
       weekday: 'long'
     })
+  },
+
+  // 获取API配置
+  getApiConfig() {
+    return getApiConfig()
   }
 }
 
 // 导出API基础URL
-export { getApiBaseUrl }
+export { getApiConfig as getApiBaseUrl }

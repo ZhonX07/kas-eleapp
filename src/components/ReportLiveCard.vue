@@ -231,6 +231,18 @@ function navigateToReports() {
 function setupWebSocketListener() {
   // 监听新通报事件
   window.addEventListener('new-report', handleNewReport)
+  
+  // 监听WebSocket消息
+  window.addEventListener('websocket-message', handleWebSocketMessage)
+}
+
+// 处理WebSocket消息
+function handleWebSocketMessage(event) {
+  const message = event.detail
+  
+  if (message.type === 'new-report') {
+    handleNewReport({ detail: message.data })
+  }
 }
 
 // 处理新通报
@@ -239,6 +251,8 @@ function handleNewReport(event) {
   
   // 如果是今天的通报，添加到列表并更新统计
   if (newReport) {
+    console.log('收到新通报:', newReport)
+    
     // 更新统计数据
     summary.value.total += 1
     if (newReport.isadd) {
@@ -260,6 +274,8 @@ function handleNewReport(event) {
       hour: '2-digit',
       minute: '2-digit'
     })
+    
+    console.log('实时通报列表已更新')
   }
 }
 
@@ -317,6 +333,7 @@ onUnmounted(() => {
   
   // 移除WebSocket监听
   window.removeEventListener('new-report', handleNewReport)
+  window.removeEventListener('websocket-message', handleWebSocketMessage)
 })
 </script>
 

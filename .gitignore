@@ -14,8 +14,13 @@ dist-ssr
 coverage
 *.local
 
-/cypress/videos/
-/cypress/screenshots/
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# But keep example files
+!*.example
 
 # Editor directories and files
 .vscode/*
@@ -28,3 +33,47 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# Build outputs
+build/
+out/
+
+# Electron
+dist_electron/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Dependency directories
+jspm_packages/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

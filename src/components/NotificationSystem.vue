@@ -17,7 +17,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { reportsAPI } from '../utils/api.js'
+import { reportsAPI } from '../utils/api-unified.js'
 
 const notifications = ref([])
 let lastReportCount = 0
@@ -90,40 +90,20 @@ async function checkNewReports() {
   try {
     const response = await reportsAPI.getTodayStats()
     
-    if (!response.success) {
-      return
-    }
-    
-    const total = response.data.total || 0
-    
-    // 如果总数增加，说明有新通报
-    if (lastReportCount > 0 && total > lastReportCount) {
-      // 获取最新的通报
-      const detailsResponse = await reportsAPI.getTodayDetails()
+    if (response.success) {
+      const newTotal = response.data.summary.total
       
-      if (detailsResponse.success && detailsResponse.data.allReports?.length > 0) {
-        // 查找上次检查后的新通报
-        const newReports = detailsResponse.data.allReports
-          .filter(report => {
-            const reportTime = new Date(report.submittime)
-            return reportTime > lastCheckTime
-          })
-          .sort((a, b) => new Date(b.submittime) - new Date(a.submittime))
-        
-        // 为每个新通报创建通知
-        newReports.forEach(report => {
-          addNotification({
-            type: report.isadd ? 'praise' : 'criticism',
-            title: `${report.class}班 ${report.isadd ? '表扬' : '违纪'}通报`,
-            message: report.note
-          })
+      if (lastReportCount !== null && newTotal > lastReportCount) {
+        const newReportsCount = newTotal - lastReportCount
+        addNotification({
+          type: 'info',
+          title: '新通报',
+          message: `收到 ${newReportsCount} 条新通报`
         })
       }
+      
+      lastReportCount = newTotal
     }
-    
-    // 更新计数和检查时间
-    lastReportCount = total
-    lastCheckTime = new Date()
   } catch (error) {
     console.error('检查新通报失败:', error)
   }

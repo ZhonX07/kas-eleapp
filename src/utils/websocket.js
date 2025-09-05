@@ -1,7 +1,11 @@
+/**
+ * WebSocket 客户端工具
+ */
+
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useNotification } from './notification'
 
-// 连接状态
+// WebSocket连接状态
 export const connectionStatus = ref('disconnected') // 'disconnected', 'connecting', 'connected'
 export const wsMessages = reactive([])
 export const wsStats = reactive({
@@ -17,6 +21,10 @@ const RECONNECT_INTERVAL = 5000 // 5秒后重连
 const MAX_RECONNECT_ATTEMPTS = 5 // 最大重连次数
 const MAX_MESSAGES = 50 // 最大保存消息数量
 
+// API基础URL（从环境变量获取）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://117.72.79.92:8080'
+const WS_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://')
+
 // 消息处理器映射表
 const messageHandlers = {}
 
@@ -31,28 +39,16 @@ export function registerMessageHandler(type, handler) {
 // 连接到WebSocket服务器
 export function connect() {
   if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
+    console.log('WebSocket已连接，无需重复连接')
     return
   }
   
   connectionStatus.value = 'connecting'
   
-  // 获取WebSocket地址
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  let host
-  
-  if (import.meta.env.VITE_API_BASE_URL) {
-    host = new URL(import.meta.env.VITE_API_BASE_URL).host
-  } else {
-    // 开发环境下确保使用正确的端口
-    host = window.location.hostname + ':8080'
-  }
-  
-  const wsUrl = `${protocol}//${host}`
-  
-  console.log('尝试连接WebSocket:', wsUrl)
+  console.log('尝试连接WebSocket:', WS_URL)
   
   try {
-    socket = new WebSocket(wsUrl)
+    socket = new WebSocket(WS_URL)
     
     socket.onopen = () => {
       console.log('WebSocket已连接')
@@ -73,31 +69,25 @@ export function connect() {
       }
     }
     
+    // 处理收到的消息
     socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data)
         console.log('收到WebSocket消息:', message)
         
-        // 添加消息到历史记录
-        wsMessages.unshift(message)
-        
-        // 限制保存的消息数量
-        if (wsMessages.length > MAX_MESSAGES) {
-          wsMessages.pop()
+        // 发送自定义事件到应用程序
+        if (message.type === 'new-report') {
+          // 触发新通报事件
+          window.dispatchEvent(new CustomEvent('new-report', {
+            detail: message.data
+          }))
         }
         
-        // 更新统计信息
-        wsStats.messagesReceived++
-        wsStats.lastMessageTime = new Date().toISOString()
+        // 发送通用WebSocket消息事件
+        window.dispatchEvent(new CustomEvent('websocket-message', {
+          detail: message
+        }))
         
-        // 使用消息处理器处理消息
-        if (message.type && messageHandlers[message.type]) {
-          messageHandlers[message.type](message)
-        }
-        
-        // 触发自定义事件
-        const customEvent = new CustomEvent('ws-message', { detail: message })
-        window.dispatchEvent(customEvent)
       } catch (error) {
         console.error('解析WebSocket消息失败:', error)
       }
@@ -240,4 +230,9 @@ export function initWebSocket() {
   window.addEventListener('beforeunload', () => {
     disconnect()
   })
+}
+
+// 自动连接（仅在启用WebSocket时）
+if (import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
+  connect()
 }

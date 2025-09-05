@@ -145,8 +145,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { reportsAPI, utils } from '../utils/api.js'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { reportsAPI, utils } from '../utils/api-unified.js'
 
 // 响应式数据
 const currentDate = ref('')
@@ -183,40 +183,66 @@ async function fetchTodayData() {
     loading.value = true
     error.value = ''
     
-    const today = utils.formatDate()
-    const response = await reportsAPI.getReportsByDate(today)
+    console.log('🔄 正在获取今日数据...')
     
-    // 更新统计数据
-    todayReports.value.total = response.summary.total
-    todayReports.value.positive = response.summary.positive
-    todayReports.value.negative = response.summary.negative
-    activeClasses.value = response.summary.activeClasses
+    const response = await reportsAPI.getTodayStats()
     
-    // 处理类型统计数据
-    reportTypes.value = Object.entries(response.typeStats || {}).map(([type, count]) => ({
-      type,
-      count,
-      color: typeColors[type] || '#95a5a6'
-    }))
+    if (response.success) {
+      const data = response.data
+      
+      // 更新统计数据
+      todayReports.value = {
+        total: data.summary.total || 0,
+        positive: data.summary.positive || 0,
+        negative: data.summary.negative || 0
+      }
+      
+      activeClasses.value = data.summary.activeClasses || 0
+      
+      // 处理通报类型统计
+      reportTypes.value = Object.entries(data.typeStats || {}).map(([type, count]) => ({
+        type,
+        count,
+        color: typeColors[type] || '#95a5a6'
+      }))
+      
+      // 处理班级排行
+      classRanking.value = (data.classRanking || []).map((item, index) => ({
+        ...item,
+        rank: index + 1,
+        trend: 'stable' // 可以根据历史数据计算趋势
+      }))
+      
+      // 处理最新通报
+      recentReports.value = data.recentReports || []
+      
+      console.log('✅ 今日数据获取成功:', data)
+      
+      // 绘制图表
+      await nextTick()
+      drawPieChart()
+    } else {
+      throw new Error(response.message || '获取数据失败')
+    }
     
-    // 更新班级排行榜
-    classRanking.value = response.classRanking.map((item, index) => ({
-      ...item,
-      rank: index + 1,
-      trend: item.totalScore > 0 ? 'up' : item.totalScore < 0 ? 'down' : 'stable'
-    }))
-    
-    // 更新最近通报
-    recentReports.value = response.recentReports
-    
-    // 绘制饼图
-    await nextTick()
-    drawPieChart()
-    
-    console.log('📊 数据刷新成功')
   } catch (err) {
-    console.error('获取今日数据失败:', err)
-    error.value = err.message || '获取数据失败'
+    console.error('❌ 获取今日数据失败:', err)
+    
+    // 根据错误类型提供更具体的错误信息
+    if (err.message.includes('Failed to fetch')) {
+      error.value = '无法连接到后端服务器，请检查网络连接和服务器状态'
+    } else if (err.message.includes('CORS')) {
+      error.value = 'CORS跨域错误，请检查后端服务器配置'
+    } else {
+      error.value = `获取数据失败: ${err.message}`
+    }
+    
+    // 使用备用数据
+    todayReports.value = { total: 0, positive: 0, negative: 0 }
+    activeClasses.value = 0
+    reportTypes.value = []
+    classRanking.value = []
+    recentReports.value = []
   } finally {
     loading.value = false
   }
@@ -473,37 +499,7 @@ const refreshData = () => {
   background: white;
   border-radius: 10px;
   padding: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.section-header {
-  margin-bottom: 20px;
-}
-
-.section-header h2 {
-  margin: 0;
-  color: #2c3e50;
-  font-size: 18px;
-}
-
-.chart-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-.chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  justify-content: center;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+  box-shadow: 
 
 .legend-color {
   width: 16px;

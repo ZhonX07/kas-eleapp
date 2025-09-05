@@ -3,30 +3,29 @@
  * 用于集中管理后端API接口地址
  */
 
-// API基础URL - 可以通过环境变量配置，默认使用远程地址
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://117.72.79.92:8080'
+// 从环境变量获取配置
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin
+export const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000')
+export const IS_DEV = import.meta.env.VITE_DEV_MODE === 'true'
+export const DEBUG_MODE = import.meta.env.VITE_DEBUG === 'true'
 
-// 登录接口
-export const LOGIN_API = `${API_BASE_URL}/api/login`
-
-// 提交通报数据接口
-export const SUBMIT_REPORT_API = `${API_BASE_URL}/inputdata`
-
-// 获取报告归档接口
-export const GET_ARCHIVES_API = `${API_BASE_URL}/archives`
-
-// 获取今日明细数据接口
-export const GET_TODAY_DETAILS_API = `${API_BASE_URL}/today-details`
-
-// 获取统计数据接口
-export const GET_STATISTICS_API = `${API_BASE_URL}/statistics`
+// API端点配置
+export const API_ENDPOINTS = {
+  LOGIN: '/api/login',
+  SUBMIT_REPORT: '/api/inputdata',
+  TODAY_STATS: '/api/reports/today/stats',
+  TODAY_DETAILS: '/api/reports/today/details',
+  CLASSES: '/api/classes',
+  HISTORY: '/api/reports/history'
+}
 
 // API请求通用配置
 export const API_CONFIG = {
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 10000, // 10秒超时
+  timeout: API_TIMEOUT,
+  credentials: 'include' as RequestCredentials
 }
 
 // API响应类型定义
@@ -58,5 +57,12 @@ export interface TodayDetailsResponse {
   }>
 }
 
-// 开发环境标识
-export const IS_DEV = import.meta.env.DEV
+// 应用配置
+export const APP_CONFIG = {
+  title: import.meta.env.VITE_APP_TITLE || 'KAS系统',
+  version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  theme: import.meta.env.VITE_THEME || 'light',
+  language: import.meta.env.VITE_LANGUAGE || 'zh-CN',
+  cacheEnabled: import.meta.env.VITE_CACHE_ENABLED === 'true',
+  cacheDuration: parseInt(import.meta.env.VITE_CACHE_DURATION || '300000')
+}
