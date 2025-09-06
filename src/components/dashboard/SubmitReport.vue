@@ -305,6 +305,27 @@ async function handleSubmit() {
       message.value = `通报提交成功！记录ID: ${response.data.id}`
       messageType.value = 'success'
       
+      // 手动触发本地更新事件（以防WebSocket消息丢失）
+      const localReport = {
+        id: response.data.id,
+        class: submitData.class,
+        headteacher: response.data.headteacher || `班主任${submitData.class}`,
+        isadd: submitData.isadd,
+        changescore: submitData.changescore,
+        note: submitData.note,
+        submitter: submitData.submitter,
+        submittime: response.data.submittime || new Date().toISOString(),
+        reducetype: submitData.reducetype
+      }
+      
+      // 延迟触发本地事件，确保WebSocket消息先处理
+      setTimeout(() => {
+        console.log('🔔 触发本地新通报事件（备用）')
+        window.dispatchEvent(new CustomEvent('new-report-local', {
+          detail: localReport
+        }))
+      }, 2000)
+      
       // 重置表单
       resetForm()
       

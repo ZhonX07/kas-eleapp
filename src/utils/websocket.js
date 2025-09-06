@@ -79,14 +79,45 @@ export function connect() {
         wsStats.messagesReceived++
         wsStats.lastMessageTime = new Date().toISOString()
         
-        // 发送自定义事件到应用程序
-        if (message.type === 'new-report') {
-          // 触发新通报事件
+        // 统一处理所有消息类型
+        if (message.type === 'new-report' && message.data) {
+          // 标准化消息数据格式
+          const reportData = {
+            id: message.data.id,
+            class: message.data.class,
+            headteacher: message.data.headteacher,
+            isadd: message.data.isadd,
+            changescore: message.data.changescore,
+            note: message.data.note,
+            submitter: message.data.submitter,
+            submittime: message.data.submittime || new Date().toISOString(),
+            reducetype: message.data.reducetype
+          }
+          
+          console.log('🔔 处理新通报数据:', reportData)
+          
+          // 触发标准化的新通报事件
           window.dispatchEvent(new CustomEvent('new-report', {
-            detail: message.data
+            detail: reportData
           }))
           
-          console.log('🔔 触发新通报事件:', message.data)
+          // 触发更新统计事件
+          window.dispatchEvent(new CustomEvent('report-stats-update', {
+            detail: {
+              type: reportData.isadd ? 'praise' : 'criticism',
+              change: 1
+            }
+          }))
+        }
+        
+        // 处理连接确认消息
+        if (message.type === 'connected') {
+          console.log('✅ WebSocket连接确认:', message.message)
+        }
+        
+        // 处理订阅确认消息
+        if (message.type === 'subscribed') {
+          console.log('✅ WebSocket订阅确认:', message.message)
         }
         
         // 发送通用WebSocket消息事件

@@ -145,8 +145,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
-import { reportsAPI, utils } from '../utils/api-unified.js'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { reportsAPI, utils } from '../utils/api.js'
 
 // 响应式数据
 const currentDate = ref('')
@@ -188,39 +188,8 @@ async function fetchTodayData() {
     const response = await reportsAPI.getTodayStats()
     
     if (response.success) {
-      const data = response.data
-      
-      // 更新统计数据
-      todayReports.value = {
-        total: data.summary.total || 0,
-        positive: data.summary.positive || 0,
-        negative: data.summary.negative || 0
-      }
-      
-      activeClasses.value = data.summary.activeClasses || 0
-      
-      // 处理通报类型统计
-      reportTypes.value = Object.entries(data.typeStats || {}).map(([type, count]) => ({
-        type,
-        count,
-        color: typeColors[type] || '#95a5a6'
-      }))
-      
-      // 处理班级排行
-      classRanking.value = (data.classRanking || []).map((item, index) => ({
-        ...item,
-        rank: index + 1,
-        trend: 'stable' // 可以根据历史数据计算趋势
-      }))
-      
-      // 处理最新通报
-      recentReports.value = data.recentReports || []
-      
-      console.log('✅ 今日数据获取成功:', data)
-      
-      // 绘制图表
-      await nextTick()
-      drawPieChart()
+      todayData.value = response.data
+      console.log('✅ 今日数据获取成功:', response.data)
     } else {
       throw new Error(response.message || '获取数据失败')
     }
@@ -238,11 +207,12 @@ async function fetchTodayData() {
     }
     
     // 使用备用数据
-    todayReports.value = { total: 0, positive: 0, negative: 0 }
-    activeClasses.value = 0
-    reportTypes.value = []
-    classRanking.value = []
-    recentReports.value = []
+    todayData.value = {
+      summary: { total: 0, positive: 0, negative: 0, activeClasses: 0 },
+      typeStats: {},
+      classRanking: [],
+      recentReports: []
+    }
   } finally {
     loading.value = false
   }
@@ -499,7 +469,37 @@ const refreshData = () => {
   background: white;
   border-radius: 10px;
   padding: 20px;
-  box-shadow: 
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.chart-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .legend-color {
   width: 16px;

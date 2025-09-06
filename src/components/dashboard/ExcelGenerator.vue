@@ -131,6 +131,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { reportsAPI } from '../../utils/api.js'
+import * as ExcelJS from 'exceljs'
 
 const route = useRoute()
 const router = useRouter()
@@ -218,7 +219,7 @@ async function loadPreviewData() {
   }
 }
 
-// 生成Excel文件（暂时使用简单的CSV格式）
+// 生成Excel文件
 async function generateExcel() {
   if (!hasData.value) {
     showMessage('没有数据可导出', 'error')
@@ -227,65 +228,182 @@ async function generateExcel() {
 
   try {
     generating.value = true
-    showMessage('正在生成文件...', 'info')
+    showMessage('正在生成Excel文件...', 'info')
 
-    // 构建CSV内容
-    const headers = ['班级', '班主任', '通报类型', '违纪类型', '原因', '分数变动', '通报提交人', '时间']
-    let csvContent = headers.join(',') + '\n'
+    // 创建工作簿
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('今日通报')
+
+    // 获取当前日期
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    const day = now.getDate()
+
+    // 设置标题行
+    const titleRow = worksheet.getRow(1)
+    titleRow.getCell(1).value = `垦利校区高三学部${year}年${month}月${day}日违纪表彰通报`
+    worksheet.mergeCells('A1:K1')
+    titleRow.height = 25
+    titleRow.getCell(1).font = { size: 16, bold: true }
+    titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
+
+    // 设置表头
+    const headerRow = worksheet.getRow(2)
+    headerRow.values = ['班级', '班主任', '通报类型', '违纪类型', '原因', '', '', '', '分数变动', '通报提交人', '时间']
+    worksheet.mergeCells('E2:H2')
+    headerRow.getCell(5).value = '原因'
+    headerRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' }
+
+    // 设置表头样式 - 只对前11列（A-K）应用样式
+    const headerFill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' }
+    }
+    const headerFont = { bold: true }
+    const headerAlignment = { horizontal: 'center', vertical: 'middle' }
+    
+    // 只对前11列（A-K）应用表头样式
+    for (let colIndex = 1; colIndex <= 11; colIndex++) {
+      const cell = headerRow.getCell(colIndex)
+      cell.fill = headerFill
+      cell.font = headerFont
+      cell.alignment = headerAlignment
+    }
+    
+    headerRow.height = 20
+
+    // 设置列宽
+    worksheet.columns = [
+      { width: 8 },   // 班级
+      { width: 10 },  // 班主任
+      { width: 10 },  // 通报类型
+      { width: 10 },  // 违纪类型
+      { width: 15 },  // 原因 (部分)
+      { width: 15 },  // 原因 (部分)
+      { width: 15 },  // 原因 (部分)
+      { width: 15 },  // 原因 (部分)
+      { width: 10 },  // 分数变动
+      { width: 12 },  // 通报提交人
+      { width: 20 }   // 时间
+    ]
 
     // 添加数据行
+    let rowIndex = 3
+
     classReports.value.forEach(classReport => {
-      // 违纪记录
+      // 先添加违纪记录
       classReport.violations.forEach(report => {
-        const row = [
-          report.class,
-          report.headteacher,
-          report.typeText,
-          report.reduceTypeText,
-          `"${report.note}"`, // 用引号包围以处理逗号
-          report.scoreDisplay,
-          report.submitter,
-          report.timeDisplay
-        ]
-        csvContent += row.join(',') + '\n'
+        const row = worksheet.getRow(rowIndex)
+        
+        row.getCell(1).value = report.class
+        row.getCell(2).value = report.headteacher
+        row.getCell(3).value = '违纪'
+        row.getCell(4).value = report.reduceTypeText || '违纪'
+        
+        // 合并原因单元格
+        worksheet.mergeCells(`E${rowIndex}:H${rowIndex}`)
+        row.getCell(5).value = report.note
+        row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+        
+        row.getCell(9).value = report.scoreDisplay
+        row.getCell(10).value = report.submitter
+        row.getCell(11).value = report.timeDisplay
+        
+        // 违纪样式 - 橙色背景，白色加粗字体 (只应用到A-K列)
+        const violationFill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFF5608' }
+        }
+        const violationFont = { bold: true, color: { argb: 'FFFFFFFF' } }
+        
+        // 只对前11列（A-K）应用样式
+        for (let colIndex = 1; colIndex <= 11; colIndex++) {
+          const cell = row.getCell(colIndex)
+          cell.fill = violationFill
+          cell.font = violationFont
+        }
+        
+        row.height = 20
+        row.alignment = { vertical: 'middle' }
+        
+        rowIndex++
       })
 
-      // 表彰记录
+      // 再添加表彰记录
       classReport.praises.forEach(report => {
-        const row = [
-          report.class,
-          report.headteacher,
-          report.typeText,
-          '', // 表彰没有违纪类型
-          `"${report.note}"`,
-          report.scoreDisplay,
-          report.submitter,
-          report.timeDisplay
-        ]
-        csvContent += row.join(',') + '\n'
+        const row = worksheet.getRow(rowIndex)
+        
+        row.getCell(1).value = report.class
+        row.getCell(2).value = report.headteacher
+        row.getCell(3).value = '表彰'
+        row.getCell(4).value = ''
+        
+        // 合并原因单元格
+        worksheet.mergeCells(`E${rowIndex}:H${rowIndex}`)
+        row.getCell(5).value = report.note
+        row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+        
+        row.getCell(9).value = report.scoreDisplay
+        row.getCell(10).value = report.submitter
+        row.getCell(11).value = report.timeDisplay
+        
+        // 表彰样式 - 绿色背景，黑色加粗字体 (只应用到A-K列)
+        const praiseFill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF99E02E' }
+        }
+        const praiseFont = { bold: true, color: { argb: 'FF000000' } }
+        
+        // 只对前11列（A-K）应用样式
+        for (let colIndex = 1; colIndex <= 11; colIndex++) {
+          const cell = row.getCell(colIndex)
+          cell.fill = praiseFill
+          cell.font = praiseFont
+        }
+        
+        row.height = 20
+        row.alignment = { vertical: 'middle' }
+        
+        rowIndex++
       })
     })
 
-    // 生成文件名
-    const today = new Date()
-    const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`
-    const fileName = `违纪表彰通报_${dateStr}.csv`
+    // 添加边框 (只给前11列添加边框)
+    for (let i = 1; i <= 11; i++) {
+      for (let j = 2; j < rowIndex; j++) {
+        worksheet.getCell(j, i).border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+      }
+    }
 
-    // 创建和下载文件
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    // 生成Excel文件
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    })
+
+    // 创建下载链接
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = fileName
+    link.download = `垦利校区高三学部${year}年${month}月${day}日违纪表彰通报.xlsx`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
 
-    showMessage(`文件生成成功: ${fileName}`, 'success')
+    showMessage(`Excel文件生成成功！共${reports.value.length}条记录`, 'success')
 
   } catch (error) {
-    console.error('❌ 生成文件失败:', error)
+    console.error('❌ 生成Excel文件失败:', error)
     showMessage(`生成失败: ${error.message}`, 'error')
   } finally {
     generating.value = false
@@ -295,19 +413,8 @@ async function generateExcel() {
 // 页面加载时初始化
 onMounted(() => {
   console.log('📊 Excel生成组件已挂载')
-  console.log('📍 当前路由信息:', {
-    path: route.path,
-    name: route.name,
-    params: route.params,
-    query: route.query
-  })
-  
   updateTime()
-  
-  // 每秒更新时间
   setInterval(updateTime, 1000)
-  
-  // 加载数据
   loadPreviewData()
 })
 </script>

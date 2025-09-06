@@ -1,15 +1,26 @@
 {
   "name": "kas-frontend-app",
   "version": "1.0.0",
-  "description": "KLYZ Assessment System 客户端",
+  "description": "学生违纪表彰通报系统",
+  "author": {
+    "name": "垦利校区高三学部",
+    "email": "admin@klyz.edu.cn"
+  },
   "main": "main.cjs",
   "type": "module",
+  "homepage": "./",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder",
+    "electron:pack": "electron-builder --publish=never",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
+    "dist": "npm run build && electron-builder --publish=never",
     "start": "electron ."
   },
   "dependencies": {
@@ -26,25 +37,63 @@
     "electron-builder": "^24.13.3",
     "typescript": "^5.9.2",
     "vite": "^4.5.14",
-    "vue-tsc": "^1.8.27"
+    "vue-tsc": "^1.8.27",
+    "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.klyz.assessment",
-    "productName": "KLYZ Assessment System",
+    "appId": "com.klyz.student-report-system",
+    "productName": "学生违纪表彰通报系统",
     "directories": {
-      "output": "dist_electron"
+      "output": "dist_electron",
+      "buildResources": "build"
     },
     "files": [
-      "dist/**/*",
-      "main.cjs"
+      "main.cjs",
+      "preload.js",
+      "package.json",
+      "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public/",
+        "to": "public/",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "学生通报系统"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Education"
     }
   }
 }

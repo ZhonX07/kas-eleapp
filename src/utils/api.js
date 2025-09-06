@@ -84,6 +84,11 @@ const reportsAPI = {
     return request('/api/classes')
   },
 
+  // 获取班级列表（别名方法）
+  async getClasses() {
+    return request('/api/classes')
+  },
+
   // 提交通报数据
   async submit(reportData) {
     return request('/api/inputdata', {

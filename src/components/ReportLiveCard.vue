@@ -96,7 +96,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { reportsAPI } from '../utils/api-updated.js'
+import { reportsAPI } from '../utils/api.js'
 import { useWebSocket } from '../utils/websocket'
 
 const router = useRouter()
@@ -119,9 +119,12 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 // 本地存储键名
 const STORAGE_KEY = 'report-card-state'
 
-// 刷新间隔(毫秒)
-const REFRESH_INTERVAL = 60000 // 60秒
+// 刷新间隔(毫秒) - 增加间隔避免与WebSocket冲突
+const REFRESH_INTERVAL = 300000 // 5分钟
 let refreshTimer = null
+
+// 防止重复处理的标记
+let isProcessingWebSocketMessage = false
 
 // 展开/收起卡片
 function toggleExpand() {
@@ -181,11 +184,13 @@ function formatTime(timeString) {
 
 // 获取数据
 async function fetchData() {
-  if (loading.value) return
+  if (loading.value || isProcessingWebSocketMessage) return
   
   try {
     loading.value = true
     error.value = ''
+    
+    console.log('📊 手动刷新实时数据...')
     
     const response = await reportsAPI.getTodayDetails()
     
@@ -209,9 +214,14 @@ async function fetchData() {
       minute: '2-digit'
     })
     
-    console.log('实时数据刷新成功')
+    console.log('✅ 实时数据刷新成功:', {
+      total: summary.value.total,
+      positive: summary.value.positive,
+      negative: summary.value.negative,
+      reportsCount: reports.value.length
+    })
   } catch (err) {
-    console.error('获取实时数据失败:', err)
+    console.error('❌ 获取实时数据失败:', err)
     if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
       error.value = `无法连接到后端服务器 (${apiBaseUrl})。请先启动后端服务器。`
     } else {
@@ -227,46 +237,59 @@ function navigateToReports() {
   router.push('/reports')
 }
 
-// 设置WebSocket消息监听器
-function setupWebSocketListener() {
-  // 监听新通报事件
-  window.addEventListener('new-report', handleNewReport)
-  
-  // 监听WebSocket消息
-  window.addEventListener('websocket-message', handleWebSocketMessage)
-}
-
-// 处理WebSocket消息
-function handleWebSocketMessage(event) {
-  const message = event.detail
-  
-  if (message.type === 'new-report') {
-    handleNewReport({ detail: message.data })
-  }
-}
-
-// 处理新通报
+// 处理新通报 - 优化逻辑
 function handleNewReport(event) {
-  const newReport = event.detail
+  if (isProcessingWebSocketMessage) {
+    console.log('⚠️ 正在处理WebSocket消息，跳过重复处理')
+    return
+  }
   
-  // 如果是今天的通报，添加到列表并更新统计
-  if (newReport) {
-    console.log('收到新通报:', newReport)
+  isProcessingWebSocketMessage = true
+  
+  try {
+    const newReport = event.detail
+    
+    if (!newReport || !newReport.id) {
+      console.warn('⚠️ 收到无效的新通报数据:', newReport)
+      return
+    }
+    
+    console.log('🔔 处理新通报:', newReport)
+    
+    // 检查是否已存在该通报（避免重复添加）
+    const existingIndex = reports.value.findIndex(r => r.id === newReport.id)
+    if (existingIndex !== -1) {
+      console.log('⚠️ 通报已存在，跳过重复添加:', newReport.id)
+      return
+    }
+    
+    // 确保数据格式正确
+    const formattedReport = {
+      id: newReport.id,
+      class: newReport.class,
+      headteacher: newReport.headteacher || `班主任${newReport.class}`,
+      isadd: Boolean(newReport.isadd),
+      changescore: Number(newReport.changescore),
+      note: String(newReport.note || ''),
+      submitter: String(newReport.submitter || '系统'),
+      submittime: newReport.submittime || new Date().toISOString(),
+      reducetype: newReport.reducetype
+    }
     
     // 更新统计数据
     summary.value.total += 1
-    if (newReport.isadd) {
+    if (formattedReport.isadd) {
       summary.value.positive += 1
     } else {
       summary.value.negative += 1
     }
     
     // 添加到列表顶部
-    reports.value.unshift(newReport)
+    reports.value.unshift(formattedReport)
     
     // 保持列表不超过5条
     if (reports.value.length > 5) {
-      reports.value.pop()
+      reports.value = reports.value.slice(0, 5)
     }
     
     // 更新最后更新时间
@@ -275,8 +298,54 @@ function handleNewReport(event) {
       minute: '2-digit'
     })
     
-    console.log('实时通报列表已更新')
+    console.log('✅ 实时通报列表已更新:', {
+      newReportId: formattedReport.id,
+      totalReports: reports.value.length,
+      totalCount: summary.value.total
+    })
+    
+  } catch (error) {
+    console.error('❌ 处理新通报失败:', error)
+  } finally {
+    // 延迟重置标记，避免处理过快
+    setTimeout(() => {
+      isProcessingWebSocketMessage = false
+    }, 1000)
   }
+}
+
+// 处理统计更新事件
+function handleStatsUpdate(event) {
+  const { type, change } = event.detail
+  
+  summary.value.total += change
+  if (type === 'praise') {
+    summary.value.positive += change
+  } else if (type === 'criticism') {
+    summary.value.negative += change
+  }
+  
+  console.log('📊 统计数据已更新:', summary.value)
+}
+
+// 设置WebSocket消息监听器
+function setupWebSocketListener() {
+  // 移除可能存在的旧监听器
+  window.removeEventListener('new-report', handleNewReport)
+  window.removeEventListener('report-stats-update', handleStatsUpdate)
+  
+  // 添加新监听器
+  window.addEventListener('new-report', handleNewReport)
+  window.addEventListener('report-stats-update', handleStatsUpdate)
+  
+  console.log('🔗 WebSocket监听器已设置')
+}
+
+// 清理WebSocket监听器
+function cleanupWebSocketListener() {
+  window.removeEventListener('new-report', handleNewReport)
+  window.removeEventListener('report-stats-update', handleStatsUpdate)
+  console.log('🧹 WebSocket监听器已清理')
 }
 
 // 获取连接状态文本
@@ -315,27 +384,35 @@ async function checkServerStatus() {
 }
 
 onMounted(() => {
+  console.log('🚀 ReportLiveCard 组件已挂载')
+  
   // 加载卡片状态
   loadCardState()
+  
+  // 设置WebSocket监听（在获取数据之前）
+  setupWebSocketListener()
   
   // 获取初始数据
   fetchData()
   
-  // 设置定时刷新
-  refreshTimer = setInterval(fetchData, REFRESH_INTERVAL)
-  
-  // 设置WebSocket监听
-  setupWebSocketListener()
+  // 设置定时刷新（减少频率，避免与WebSocket冲突）
+  refreshTimer = setInterval(() => {
+    if (!isProcessingWebSocketMessage) {
+      console.log('⏰ 定时刷新数据...')
+      fetchData()
+    }
+  }, REFRESH_INTERVAL)
 })
 
 onUnmounted(() => {
+  console.log('🔄 ReportLiveCard 组件即将卸载')
+  
   if (refreshTimer) {
     clearInterval(refreshTimer)
   }
   
-  // 移除WebSocket监听
-  window.removeEventListener('new-report', handleNewReport)
-  window.removeEventListener('websocket-message', handleWebSocketMessage)
+  // 清理WebSocket监听
+  cleanupWebSocketListener()
 })
 </script>
 
