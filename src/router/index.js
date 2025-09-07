@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 
 // 导入页面组件
 const Login = () => import('../views/Login.vue')
@@ -57,18 +57,20 @@ const routes = [
 
 // 创建路由实例
 const router = createRouter({
-  history: createWebHistory(),
-  routes
+  history: createWebHashHistory(), // 使用hash模式避免file://协议问题
+  routes,
 })
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  console.log(`🔄 路由跳转: ${from.path} -> ${to.path}`)
-  console.log('🔍 路由信息:', {
-    name: to.name,
-    path: to.path,
-    meta: to.meta
-  })
+  console.log('🔄 路由跳转:', from.path, '->', to.path)
+  
+  // 修复：检测并防止文件系统路径
+  if (to.path.includes(':') || to.path.includes('\\') || to.path.includes('/C:')) {
+    console.warn('⚠️ 检测到无效路由路径:', to.path)
+    next('/login') // 重定向到登录页
+    return
+  }
   
   // 设置页面标题
   if (to.meta?.title) {

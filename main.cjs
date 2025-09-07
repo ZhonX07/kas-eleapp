@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { pathToFileURL } = require('url')
 
 // 更准确的开发环境检测
 const isDev = !app.isPackaged
@@ -39,72 +40,6 @@ function showError(title, message, detail = '') {
   }
 }
 
-function findIndexFile() {
-  console.log('=== 查找index.html文件 ===')
-  console.log('当前工作目录:', process.cwd())
-  console.log('主进程文件目录:', __dirname)
-  console.log('应用路径:', app.getAppPath())
-  
-  const possiblePaths = [
-    path.join(__dirname, 'dist', 'index.html'),
-    path.join(__dirname, '..', 'dist', 'index.html'),
-    path.join(process.resourcesPath, 'app', 'dist', 'index.html'),
-    path.join(process.resourcesPath, 'dist', 'index.html'),
-    path.join(app.getAppPath(), 'dist', 'index.html'),
-    path.join(process.cwd(), 'dist', 'index.html')
-  ]
-  
-  for (const testPath of possiblePaths) {
-    console.log('检查:', testPath)
-    try {
-      if (fs.existsSync(testPath)) {
-        console.log('✅ 找到文件:', testPath)
-        return testPath
-      }
-    } catch (e) {
-      console.log('❌ 检查失败:', e.message)
-    }
-  }
-  
-  // 列出当前目录内容
-  console.log('=== 当前目录内容 ===')
-  console.log('__dirname 内容:')
-  try {
-    const currentDir = fs.readdirSync(__dirname)
-    currentDir.forEach(item => {
-      const fullPath = path.join(__dirname, item)
-      const stats = fs.statSync(fullPath)
-      console.log(`${stats.isDirectory() ? '[DIR]' : '[FILE]'} ${item}`)
-    })
-  } catch (e) {
-    console.error('无法读取__dirname:', e.message)
-  }
-  
-  // 检查应用路径
-  console.log('=== 应用路径内容 ===')
-  try {
-    const appPath = app.getAppPath()
-    const appDir = fs.readdirSync(appPath)
-    appDir.forEach(item => {
-      const fullPath = path.join(appPath, item)
-      const stats = fs.statSync(fullPath)
-      console.log(`${stats.isDirectory() ? '[DIR]' : '[FILE]'} ${item}`)
-    })
-    
-    // 如果存在dist目录，列出其内容
-    const distPath = path.join(appPath, 'dist')
-    if (fs.existsSync(distPath)) {
-      console.log('=== dist目录内容 ===')
-      const distFiles = fs.readdirSync(distPath)
-      distFiles.forEach(file => console.log(`  ${file}`))
-    }
-  } catch (e) {
-    console.error('无法读取应用路径:', e.message)
-  }
-  
-  return null
-}
-
 function createWindow() {
   console.log('=== 创建主窗口 ===')
   
@@ -119,9 +54,8 @@ function createWindow() {
         nodeIntegration: false,
         contextIsolation: true,
         enableRemoteModule: false,
-        webSecurity: !isDev
-        // 暂时注释掉preload，避免路径问题
-        // preload: path.join(__dirname, 'preload.js')
+        webSecurity: !isDev,
+        preload: path.join(__dirname, 'preload.js')
       },
       show: false,
       titleBarStyle: 'default',
@@ -155,22 +89,25 @@ function createWindow() {
     // 加载应用
     if (isDev) {
       console.log('开发环境 - 尝试连接:', CONFIG.devServer.url)
-      mainWindow.loadURL(CONFIG.devServer.url).catch(err => {
+      // 直接进入登录页
+      mainWindow.loadURL(`${CONFIG.devServer.url}#/login`).catch(err => {
         console.error('开发服务器连接失败:', err)
         showError('开发服务器错误', '无法连接到开发服务器', '请确保运行了 npm run dev')
       })
     } else {
       console.log('生产环境 - 查找本地文件')
-      const indexPath = findIndexFile()
+      const indexPath = path.join(__dirname, 'dist/index.html')
       
-      if (indexPath) {
+      if (fs.existsSync(indexPath)) {
         console.log('加载文件:', indexPath)
-        mainWindow.loadFile(indexPath).catch(err => {
+        // 使用 file:// URL 并追加 #/login
+        const fileUrl = `${pathToFileURL(indexPath).toString()}#/login`
+        mainWindow.loadURL(fileUrl).catch(err => {
           console.error('文件加载失败:', err)
           showError('文件加载错误', '无法加载应用文件', err.message)
         })
       } else {
-        showError('文件未找到', '无法找到应用的HTML文件', '请重新安装应用或联系技术支持')
+        showError('文件未找到', '无法找到应用的HTML文件 (dist/index.html)', `路径 ${indexPath} 不存在。请检查打包配置。`)
       }
     }
 
@@ -278,17 +215,45 @@ app.whenReady().then(() => {
   showError('初始化失败', '应用无法初始化', error.message)
 })
 
-// 所有窗口关闭时退出应用
+// 所有窗口关闭时退出应用 - 修复进程残留问题
 app.on('window-all-closed', () => {
+  console.log('所有窗口已关闭，准备退出应用')
   if (process.platform !== 'darwin') {
+    const quitTimer = setTimeout(() => {
+      console.log('强制退出以清理残留进程')
+      app.exit(0)
+    }, 2000)
+    app.once('will-quit', () => clearTimeout(quitTimer))
     app.quit()
   }
 })
 
-// 错误处理
+// 应用退出前的清理
+app.on('before-quit', (event) => {
+  console.log('应用准备退出，进行清理...')
+  
+  // 关闭所有窗口
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.destroy()
+    }
+  })
+})
+
+// 添加应用退出事件
+app.on('will-quit', (event) => {
+  console.log('应用即将退出')
+})
+
+// 错误处理 - 防止未捕获异常导致进程残留
 process.on('uncaughtException', (error) => {
   console.error('未捕获的异常:', error)
   showError('系统错误', '应用遇到未处理的错误', error.message)
+  
+  // 优雅退出
+  setTimeout(() => {
+    process.exit(1)
+  }, 2000)
 })
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -296,9 +261,26 @@ process.on('unhandledRejection', (reason, promise) => {
   showError('Promise错误', '应用遇到未处理的Promise错误', reason.toString())
 })
 
+// 监听系统关闭信号
+process.on('SIGINT', () => {
+  console.log('收到SIGINT信号，退出应用')
+  app.quit()
+})
+
+process.on('SIGTERM', () => {
+  console.log('收到SIGTERM信号，退出应用')
+  app.quit()
+})
+
 // 简化的IPC处理
 ipcMain.handle('get-app-version', () => {
   return app.getVersion()
+})
+
+// 新增：供渲染进程调用的消息框
+ipcMain.handle('show-message-box', (event, options) => {
+  const win = BrowserWindow.getFocusedWindow() || null
+  return dialog.showMessageBox(win, options)
 })
 
 console.log('=== main.cjs 加载完成 ===')

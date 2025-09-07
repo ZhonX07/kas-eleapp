@@ -7,26 +7,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 应用信息
   getVersion: () => ipcRenderer.invoke('get-app-version'),
   
+  // 通知功能
+  showNotification: (title, body, options) => {
+    new Notification(title, { body, ...options })
+  },
+
+  // 消息框
+  showMessageBox: (options) => ipcRenderer.invoke('show-message-box', options),
+
   // 系统信息
   platform: process.platform,
   arch: process.arch,
-  
-  // 通知功能
-  showNotification: (title, body, options = {}) => {
-    if ('Notification' in window) {
-      new Notification(title, { body, ...options })
-    }
-  },
-  
-  // 消息框
-  showMessageBox: (options) => ipcRenderer.invoke('show-message-box', options),
-  
-  // 环境检测
-  isDev: process.env.NODE_ENV === 'development',
-  
-  // 文件系统访问（如果需要）
-  // openFile: () => ipcRenderer.invoke('dialog:openFile'),
-  // saveFile: (data) => ipcRenderer.invoke('dialog:saveFile', data),
+  isDev: process.env.NODE_ENV === 'development'
 })
 
 // DOM加载完成后的处理

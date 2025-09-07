@@ -9,6 +9,27 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      (function() {
+        try {
+          // 检测文件系统路径，强制使用应用内路由
+          const pathname = window.location.pathname;
+          if (pathname.includes(':') || pathname.includes('\\') || 
+              pathname.toLowerCase().includes('/c:') || pathname.includes('app.asar')) {
+            // 使用hash路由避免file://协议问题
+            window.location.hash = '#/login';
+          } 
+          // 确保默认进入登录页
+          else if (!location.hash || location.hash === '#' || location.hash === '#/') {
+            location.hash = '#/login';
+          }
+        } catch (e) { 
+          console.warn('启动路由初始化失败:', e);
+          // 兜底确保总是有一个路由
+          window.location.hash = '#/login';
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
